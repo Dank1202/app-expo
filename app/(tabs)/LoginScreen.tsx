@@ -1,8 +1,17 @@
-// LoginScreen.tsx
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './_layout';
+import useFetch from '@/hooks/useApi';
+import { useUser } from '@/context/UserContext'; // Importa el contexto
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -10,22 +19,52 @@ type Props = {
   navigation: LoginScreenNavigationProp;
 };
 
+interface LoginResponse {
+  message: string;
+  token?: string;
+  userId?: string; // Añade userId en la respuesta
+}
+
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginMessage, setLoginMessage] = useState('');
+
+  const { data, loading, error, fetchData } = useFetch<LoginResponse>(
+    'POST',
+    'http://utcalvillo.ddns.net:3000/api/users/login'
+  );
+
+  const { setUserId } = useUser(); // Usa el contexto
+
+  const handleLogin = async () => {
+    setLoginMessage('');
+    fetchData({ email, password });
+  };
+
+  useEffect(() => {
+    if (data) {
+      if (data.message === 'Inicio de sesión exitoso') {
+        setLoginMessage('Inicio de sesión exitoso');
+        if (data.userId) {
+          setUserId(data.userId); // Almacena el userId en el contexto
+        }
+        navigation.navigate('Search');
+      } else {
+        setLoginMessage(data.message || 'Error desconocido');
+      }
+    }
+  }, [data, navigation, setUserId]);
 
   return (
     <View style={styles.container}>
-      {/* Logo */}
-      <View style={styles.logoContainer}>
-        <Image style={styles.logo} source={{ uri: 'https://via.placeholder.com/150' }} />
-      </View>
-
-      {/* Título */}
+      <Image
+        style={styles.logo}
+        source={{ uri: 'https://via.placeholder.com/150' }}
+      />
       <Text style={styles.title}>Iniciar Sesión</Text>
 
-      {/* Campo de Email */}
       <Text style={styles.label}>Correo Electrónico</Text>
       <TextInput
         style={styles.input}
@@ -34,15 +73,12 @@ export default function LoginScreen({ navigation }: Props) {
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
       />
 
-      {/* Campo de Contraseña */}
       <Text style={styles.label}>Contraseña</Text>
       <View style={styles.passwordContainer}>
         <TextInput
-          style={[styles.input, { flex: 1 }]}
+          style={styles.input}
           placeholder="********"
           placeholderTextColor="#888"
           value={password}
@@ -50,92 +86,33 @@ export default function LoginScreen({ navigation }: Props) {
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Text style={styles.showPassword}>{showPassword ? '🙈' : '👁️'}</Text>
+          <Text>{showPassword ? '🙈' : '👁️'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Botón Iniciar Sesión */}
-      <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Search')}>
-        <Text style={styles.buttonText}>Iniciar Sesión</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text>Iniciar Sesión</Text>}
       </TouchableOpacity>
 
-      {/* Botón Crear Cuenta */}
-      <TouchableOpacity style={styles.createAccountButton} onPress={() => navigation.navigate('SignUp')}>
-        <Text style={styles.createAccountText}>Crear Cuenta</Text>
+      {loginMessage && <Text style={styles.message}>{loginMessage}</Text>}
+      {error && <Text style={styles.error}>Error: {error}</Text>}
+
+      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+        <Text style={styles.link}>Crear cuenta</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-  },
-  logoContainer: {
-    marginBottom: 30,
-  },
-  logo: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 40,
-  },
-  label: {
-    alignSelf: 'flex-start',
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 5,
-    marginLeft: 40,
-  },
-  input: {
-    width: '90%',
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 20,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#f9f9f9',
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '90%',
-    marginBottom: 20,
-  },
-  showPassword: {
-    marginLeft: 10,
-    fontSize: 18,
-    color: '#888',
-  },
-  signInButton: {
-    width: '90%',
-    backgroundColor: '#4A90E2',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  createAccountButton: {
-    marginTop: 15,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  createAccountText: {
-    color: '#4A90E2',
-    fontSize: 16,
-  },
+  container: { flex: 1, padding: 20, justifyContent: 'center' },
+  logo: { width: 100, height: 100, alignSelf: 'center' },
+  title: { fontSize: 24, textAlign: 'center', marginVertical: 20 },
+  label: { fontSize: 16, marginVertical: 5 },
+  input: { borderWidth: 1, padding: 10, borderRadius: 5, marginBottom: 15 },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center' },
+  button: { backgroundColor: '#4A90E2', padding: 15, borderRadius: 8, alignItems: 'center' },
+  message: { textAlign: 'center', marginVertical: 10 },
+  error: { color: 'red', textAlign: 'center', marginTop: 10 },
+  link: { textAlign: 'center', color: '#4A90E2', marginTop: 15 },
 });

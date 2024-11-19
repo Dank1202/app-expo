@@ -1,28 +1,40 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import db from './dbConfig'; // Asegúrate de que la ruta es correcta
-import User from './User'; // Asegúrate de que la ruta es correcta
+import useFetch from '@/hooks/useApi';
 
 export default function SignUpScreen() {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
 
-  const handleSignUp = async () => {
-    try {
-      const newUser = new User({
-        name,
-        phoneNumber,
-        email,
-        password,
-      });
+  // Usa el hook para manejar la solicitud POST
+  const { data, loading, error, fetchData } = useFetch('POST', 'http://utcalvillo.ddns.net:3000/api/users/register');
 
-      await newUser.save();
-      console.log('Cuenta creada exitosamente');
-    } catch (error) {
-      console.error('Error al crear la cuenta:', error);
+  // Función para validar el correo electrónico
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+
+  const handlePost = () => {
+    // Validar el correo electrónico
+    if (!validateEmail(email)) {
+      setEmailError('Correo electrónico no válido');
+      return;
+    } else {
+      setEmailError('');
     }
+
+    // Llama a fetchData al presionar el botón
+    fetchData({
+      name,
+      phoneNumber,
+      email,
+      password,
+    });
   };
 
   return (
@@ -49,8 +61,14 @@ export default function SignUpScreen() {
         placeholder="name@example.com"
         keyboardType="email-address"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => {
+          setEmail(text);
+          if (emailError) {
+            setEmailError('');
+          }
+        }}
       />
+      {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
       <Text style={styles.label}>Contraseña</Text>
       <TextInput
         style={styles.input}
@@ -59,7 +77,7 @@ export default function SignUpScreen() {
         value={password}
         onChangeText={setPassword}
       />
-      <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+      <TouchableOpacity style={styles.button} onPress={handlePost}>
         <Text style={styles.buttonText}>Crear Cuenta</Text>
       </TouchableOpacity>
     </View>
@@ -102,5 +120,9 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
   },
 });
